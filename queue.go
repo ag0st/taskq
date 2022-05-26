@@ -1,38 +1,23 @@
 package taskq
 
 type TaskQ[T any] struct {
-	queue   chan T
-	workers []worker[T]
-	Errc    chan error
+	queue    chan T
+	workers  []worker[T]
+	Errc     chan error
+	workerFn func(job T) error
+	scaling  Scaling
 }
 
-func New[T any](workers, capacity int, workerFnc func(job T) error) TaskQ[T] {
+func New[T any](scalingOptions Scaling, capacity int, workerFnc func(job T) error) TaskQ[T] {
 	t := TaskQ[T]{
-		queue:   make(chan T, capacity),
-		workers: make([]worker[T], workers),
-		Errc:    make(chan error),
+		queue:     make(chan T, capacity),
+		workers:   make([]worker[T], 0, scalingOptions.MaxReplica),
+		Errc:      make(chan error),
+		workerFnc: workerFnc,
+		scaling:   scalingOptions,
 	}
-	for i := 0; i < workers; i++ {
-		t.workers[i] = worker[T]{
-			consume: workerFnc,
-		}
-	}
+	go t.monitor()
 	return t
-}
-
-// Start starts all the workers inside the queue.
-func (t TaskQ[T]) Start() {
-	for _, w := range t.workers {
-		w.start(t.queue, t.Errc)
-	}
-}
-
-// Stop stops all the workers of the queue.
-func (t TaskQ[T]) Stop() {
-	for _, w := range t.workers {
-		// for now ignore the stats
-		_ = w.stop()
-	}
 }
 
 // PushNonBlocking tries to push into the task queue, but if the queue is full, don't block.
