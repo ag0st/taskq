@@ -1,10 +1,12 @@
 package taskq
 
 type TaskQ[T any] struct {
-	queue   chan T
-	workers []worker[T]
-	Errc    chan error
-	Panicc  chan error
+	queue         chan T
+	workers       []worker[T]
+	Errc          chan error
+	Panicc        chan error
+	OnWorkerStart func()
+	OnWorkerStop  func()
 }
 
 func New[T any](workers, capacity int, workerFnc func(job T) error) TaskQ[T] {
@@ -24,6 +26,10 @@ func New[T any](workers, capacity int, workerFnc func(job T) error) TaskQ[T] {
 func (t TaskQ[T]) Start() {
 	for _, w := range t.workers {
 		w.start(t.queue, t.Errc, t.Panicc)
+		// execute on start
+		if t.OnWorkerStart != nil {
+			t.OnWorkerStart()
+		}
 	}
 }
 
@@ -33,6 +39,10 @@ func (t TaskQ[T]) Stop() []Stats {
 	for _, w := range t.workers {
 		// for now ignore the stats
 		res = append(res, w.stop())
+		// execute on stop
+		if t.OnWorkerStop != nil {
+			t.OnWorkerStop()
+		}
 	}
 	return res
 }

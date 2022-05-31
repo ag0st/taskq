@@ -77,3 +77,27 @@ func TestCrash(t *testing.T) {
 	}
 	queue.Stop()
 }
+
+func ExampleHooks() {
+	queue := New[int](
+		3, 1, func(data int) error {
+			// just produce an error
+			return nil
+		},
+	)
+	queue.OnWorkerStart = func() {
+		fmt.Println("started")
+	}
+	queue.OnWorkerStop = func() {
+		fmt.Println("stopped")
+	}
+	queue.Start()
+	queue.Stop()
+	// Output:
+	// started
+	// started
+	// started
+	// stopped
+	// stopped
+	// stopped
+}
