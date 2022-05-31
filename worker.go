@@ -6,14 +6,21 @@ import (
 	"time"
 )
 
-type stats struct {
-	taskProcessed int64
-	averageTime   time.Duration
+type Stats struct {
+	TaskProcessed int64
+	AverageTime   time.Duration
 }
 
 type worker[T any] struct {
 	consume func(task T) error
-	quit    chan chan stats
+	quit    chan chan Stats
+}
+
+func newWorker[T any](workerFnc func(task T) error) worker[T] {
+	return worker[T]{
+		consume: workerFnc,
+		quit:    make(chan chan Stats, 1),
+	}
 }
 
 func updateAverage(times int64, average time.Duration) func() time.Duration {
@@ -31,9 +38,9 @@ func (w worker[T]) start(queue chan T, errc chan error) {
 		}
 	}
 	go func() {
-		stats := stats{
-			taskProcessed: 0,
-			averageTime:   0,
+		stats := Stats{
+			TaskProcessed: 0,
+			AverageTime:   0,
 		}
 		for {
 			select {
@@ -41,12 +48,12 @@ func (w worker[T]) start(queue chan T, errc chan error) {
 				statsc <- stats
 			case task := <-queue:
 				func() {
-					u := updateAverage(stats.taskProcessed, stats.averageTime)
+					u := updateAverage(stats.TaskProcessed, stats.AverageTime)
 					defer func() {
-						u()
+						stats.AverageTime = u()
 						checkError(survive())
 					}()
-					stats.taskProcessed++
+					stats.TaskProcessed++
 					checkError(w.consume(task))
 				}()
 			}
@@ -54,8 +61,8 @@ func (w worker[T]) start(queue chan T, errc chan error) {
 	}()
 }
 
-func (w worker[T]) stop() stats {
-	statsc := make(chan stats, 1)
+func (w worker[T]) stop() Stats {
+	statsc := make(chan Stats, 1)
 	w.quit <- statsc
 	return <-statsc
 }

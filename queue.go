@@ -13,9 +13,7 @@ func New[T any](workers, capacity int, workerFnc func(job T) error) TaskQ[T] {
 		Errc:    make(chan error),
 	}
 	for i := 0; i < workers; i++ {
-		t.workers[i] = worker[T]{
-			consume: workerFnc,
-		}
+		t.workers[i] = newWorker(workerFnc)
 	}
 	return t
 }
@@ -28,11 +26,13 @@ func (t TaskQ[T]) Start() {
 }
 
 // Stop stops all the workers of the queue.
-func (t TaskQ[T]) Stop() {
+func (t TaskQ[T]) Stop() []Stats {
+	var res []Stats
 	for _, w := range t.workers {
 		// for now ignore the stats
-		_ = w.stop()
+		res = append(res, w.stop())
 	}
+	return res
 }
 
 // PushNonBlocking tries to push into the task queue, but if the queue is full, don't block.
