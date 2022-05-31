@@ -50,8 +50,16 @@ func (w worker[T]) start(queue chan T, errc chan error) {
 				func() {
 					u := updateAverage(stats.TaskProcessed, stats.AverageTime)
 					defer func() {
+						// update the average time
 						stats.AverageTime = u()
-						checkError(survive())
+						// recover is something went wrong, don't want to crash the worker itself.
+						if err := recover(); err != nil {
+							checkError(
+								errors.Wrap(
+									errors.New(fmt.Sprintf("%v", err)), "Crash detected when consuming a task",
+								),
+							)
+						}
 					}()
 					stats.TaskProcessed++
 					checkError(w.consume(task))
@@ -65,11 +73,4 @@ func (w worker[T]) stop() Stats {
 	statsc := make(chan Stats, 1)
 	w.quit <- statsc
 	return <-statsc
-}
-
-func survive() error {
-	if err := recover(); err != nil {
-		return errors.Wrap(errors.New(fmt.Sprintf("%v", err)), "Crash detected when consuming a task")
-	}
-	return nil
 }

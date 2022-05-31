@@ -56,3 +56,24 @@ func TestError(t *testing.T) {
 	}
 	queue.Stop()
 }
+
+func TestCrash(t *testing.T) {
+	queue := New[int](
+		5, 1000, func(data int) error {
+			// just produce an error
+			panic(fmt.Sprintf("Crash processing %d", data))
+			return nil
+		},
+	)
+	totalTest := 100
+	for i := 0; i < totalTest; i++ {
+		queue.Push(i)
+	}
+	queue.Start()
+
+	for i := 0; i < totalTest; i++ {
+		// must receive an error
+		log.Println(<-queue.Errc)
+	}
+	queue.Stop()
+}
