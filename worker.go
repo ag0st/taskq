@@ -31,7 +31,7 @@ func updateAverage(times int64, average time.Duration) func() time.Duration {
 	}
 }
 
-func (w worker[T]) start(queue chan T, errc chan error) {
+func (w worker[T]) start(queue chan T, errc chan error, panicc chan error) {
 	checkError := func(err error) {
 		if err != nil {
 			errc <- err
@@ -54,10 +54,8 @@ func (w worker[T]) start(queue chan T, errc chan error) {
 						stats.AverageTime = u()
 						// recover is something went wrong, don't want to crash the worker itself.
 						if err := recover(); err != nil {
-							checkError(
-								errors.Wrap(
-									errors.New(fmt.Sprintf("%v", err)), "Crash detected when consuming a task",
-								),
+							panicc <- errors.Wrap(
+								errors.New(fmt.Sprintf("%v", err)), "crash detected when consuming a task",
 							)
 						}
 					}()

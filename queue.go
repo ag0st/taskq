@@ -4,6 +4,7 @@ type TaskQ[T any] struct {
 	queue   chan T
 	workers []worker[T]
 	Errc    chan error
+	Panicc  chan error
 }
 
 func New[T any](workers, capacity int, workerFnc func(job T) error) TaskQ[T] {
@@ -11,6 +12,7 @@ func New[T any](workers, capacity int, workerFnc func(job T) error) TaskQ[T] {
 		queue:   make(chan T, capacity),
 		workers: make([]worker[T], workers),
 		Errc:    make(chan error),
+		Panicc:  make(chan error),
 	}
 	for i := 0; i < workers; i++ {
 		t.workers[i] = newWorker(workerFnc)
@@ -21,7 +23,7 @@ func New[T any](workers, capacity int, workerFnc func(job T) error) TaskQ[T] {
 // Start starts all the workers inside the queue.
 func (t TaskQ[T]) Start() {
 	for _, w := range t.workers {
-		w.start(t.queue, t.Errc)
+		w.start(t.queue, t.Errc, t.Panicc)
 	}
 }
 

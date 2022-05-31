@@ -73,7 +73,7 @@ func TestCrash(t *testing.T) {
 
 	for i := 0; i < totalTest; i++ {
 		// must receive an error
-		log.Println(<-queue.Errc)
+		log.Println(<-queue.Panicc)
 	}
 	queue.Stop()
 }
