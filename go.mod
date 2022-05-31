@@ -1,4 +1,4 @@
-module taskq
+module github.com/ag0st/taskq
 
 go 1.18
 
